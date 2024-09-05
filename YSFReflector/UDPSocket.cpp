@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2006-2016,2020 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2006-2016,2020,2021 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -28,12 +28,11 @@
 #if defined(HAVE_LOG_H)
 #include "Log.h"
 #else
-#define LogMessage(fmt, ...)	::fprintf(stderr, fmt "\n", ## __VA_ARGS__)
 #define LogError(fmt, ...)	::fprintf(stderr, fmt "\n", ## __VA_ARGS__)
 #define LogInfo(fmt, ...)	::fprintf(stderr, fmt "\n", ## __VA_ARGS__)
 #endif
 
-CUDPSocket::CUDPSocket(const std::string& address, unsigned short port) :
+CUDPSocket::CUDPSocket(const std::string& address, unsigned int port) :
 m_address_save(address),
 m_port_save(port),
 m_counter(0U)
@@ -46,7 +45,7 @@ m_counter(0U)
 	}
 }
 
-CUDPSocket::CUDPSocket(unsigned short port) :
+CUDPSocket::CUDPSocket(unsigned int port) :
 m_address_save(),
 m_port_save(port),
 m_counter(0U)
@@ -80,7 +79,7 @@ void CUDPSocket::shutdown()
 #endif
 }
 
-int CUDPSocket::lookup(const std::string& hostname, unsigned short port, sockaddr_storage& addr, unsigned int& address_length)
+int CUDPSocket::lookup(const std::string& hostname, unsigned int port, sockaddr_storage& addr, unsigned int& address_length)
 {
 	struct addrinfo hints;
 	::memset(&hints, 0, sizeof(hints));
@@ -88,7 +87,7 @@ int CUDPSocket::lookup(const std::string& hostname, unsigned short port, sockadd
 	return lookup(hostname, port, addr, address_length, hints);
 }
 
-int CUDPSocket::lookup(const std::string& hostname, unsigned short port, sockaddr_storage& addr, unsigned int& address_length, struct addrinfo& hints)
+int CUDPSocket::lookup(const std::string& hostname, unsigned int port, sockaddr_storage& addr, unsigned int& address_length, struct addrinfo& hints)
 {
 	std::string portstr = std::to_string(port);
 	struct addrinfo *res;
@@ -161,6 +160,34 @@ bool CUDPSocket::isNone(const sockaddr_storage& addr)
 	return ((addr.ss_family == AF_INET) && (in->sin_addr.s_addr == htonl(INADDR_NONE)));
 }
 
+char* CUDPSocket::display(const sockaddr_storage& addr, char* buffer, unsigned int length)
+{
+	assert(buffer != NULL);
+	assert(length > INET6_ADDRSTRLEN);
+
+	switch (addr.ss_family) {
+		case AF_INET: {
+				struct sockaddr_in* in4 = (struct sockaddr_in*)&addr;
+				::inet_ntop(AF_INET, &in4->sin_addr, buffer, length);
+				::sprintf(buffer + ::strlen(buffer), ":%u", in4->sin_port);
+			}
+			break;
+
+		case AF_INET6: {
+				struct sockaddr_in6* in6 = (struct sockaddr_in6*)&addr;
+				::inet_ntop(AF_INET6, &in6->sin6_addr, buffer, length);
+				::sprintf(buffer + ::strlen(buffer), ":%u", in6->sin6_port);
+			}
+			break;
+
+		default:
+			::strcpy(buffer, "Unknown");
+			break;
+	}
+
+	return buffer;
+}
+
 bool CUDPSocket::open(const sockaddr_storage& address)
 {
 	return open(address.ss_family);
@@ -171,7 +198,7 @@ bool CUDPSocket::open(unsigned int af)
 	return open(0, af, m_address_save, m_port_save);
 }
 
-bool CUDPSocket::open(const unsigned int index, const unsigned int af, const std::string& address, const unsigned short port)
+bool CUDPSocket::open(const unsigned int index, const unsigned int af, const std::string& address, const unsigned int port)
 {
 	sockaddr_storage addr;
 	unsigned int addrlen;
@@ -225,7 +252,7 @@ bool CUDPSocket::open(const unsigned int index, const unsigned int af, const std
 			return false;
 		}
 
-		LogInfo("Opening UDP port on %hu", port);
+		LogInfo("Opening UDP port on %u", port);
 	}
 
 	return true;
@@ -294,7 +321,7 @@ int CUDPSocket::read(unsigned char* buffer, unsigned int length, sockaddr_storag
 		LogError("Error returned from recvfrom, err: %d", errno);
 
 		if (len == -1 && errno == ENOTSOCK) {
-			LogMessage("Re-opening UDP port on %hu", m_port[index]);
+			LogMessage("Re-opening UDP port on %u", m_port);
 			close();
 			open();
 		}
