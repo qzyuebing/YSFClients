@@ -252,7 +252,7 @@ bool CUDPSocket::open(const unsigned int index, const unsigned int af, const std
 			return false;
 		}
 
-		LogInfo("Opening UDP port on %u", port);
+		LogInfo("Opening UDP port on %hu", port);
 	}
 
 	return true;
@@ -321,7 +321,7 @@ int CUDPSocket::read(unsigned char* buffer, unsigned int length, sockaddr_storag
 		LogError("Error returned from recvfrom, err: %d", errno);
 
 		if (len == -1 && errno == ENOTSOCK) {
-			LogMessage("Re-opening UDP port on %u", m_port);
+			LogMessage("Re-opening UDP port on %hu", m_port[index]);
 			close();
 			open();
 		}
